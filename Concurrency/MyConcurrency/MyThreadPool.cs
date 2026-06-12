@@ -19,7 +19,8 @@ namespace MyConcurrency
                     {
                         //BlockingCollection a yeni bi action eklenene kadar burada bekler.
                         var (action, context) = actions.Take();
-                        if (context != null)
+
+                        if (context is null)
                         {
                             action();
                         }

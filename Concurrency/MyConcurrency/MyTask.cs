@@ -6,6 +6,7 @@
         private Exception? exception;
         private Action? continuation;
         private ExecutionContext? executionContext;
+        private object lockObject = new();
 
         public void SetResult() => Complete(null);
 
@@ -13,30 +14,105 @@
 
         public void Complete(Exception? exception)
         {
-            if (completed) return;
-
-            completed = true;
-            this.exception = exception;
-
-            if (continuation is not null)
+            lock (lockObject)
             {
-                MyThreadPool.QueueUserWorkItem(() =>
+                if (completed) return;
+
+                completed = true;
+                this.exception = exception;
+
+                if (continuation is not null)
                 {
-                    if (executionContext != null)
+                    MyThreadPool.QueueUserWorkItem(() =>
                     {
-                        ExecutionContext.Run(executionContext, (object? state) => ((Action)state!).Invoke(), continuation);
-                    }
-                    else
-                    {
-                        continuation();
-                    }
-                });
+                        if (executionContext is null)
+                        {
+                            continuation();
+                        }
+                        else
+                        {
+                            ExecutionContext.Run(executionContext, (object? state) => ((Action)state!).Invoke(), continuation);
+                        }
+                    });
+                }
             }
         }
 
         public void Wait()
         {
+            ManualResetEventSlim? mre = null;
 
+            if (!completed)
+            {
+                mre = new();
+                Action continuationAction = () => mre.Set();
+                lock (lockObject)
+                {
+                    if (completed)
+                    {
+                        mre.Set();
+                    }
+                    else
+                    {
+                        continuation += continuationAction;
+                    }
+                }
+            }
+
+            mre?.Wait();
         }
+
+        public MyTask ContinueWith(Action action)
+        {
+            MyTask task = new();
+            void callBack()
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    task.SetException(ex);
+                    return;
+                }
+
+                task.SetResult();
+            }
+            lock (lockObject)
+            {
+                if (completed)
+                {
+                    MyThreadPool.QueueUserWorkItem(callBack);
+                }
+                else
+                {
+                    continuation = callBack;
+                    executionContext = ExecutionContext.Capture();
+                }
+            }
+            return task;
+        }
+
+        #region Helpers
+        public static MyTask Run(Action action)
+        {
+            MyTask task = new();
+            MyThreadPool.QueueUserWorkItem(() =>
+            {
+                try
+                {
+                    action();
+                }
+                catch (Exception ex)
+                {
+                    task.SetException(ex);
+                    return;
+                }
+                task.SetResult();
+            });
+            return task;
+        }
+        #endregion
     }
 }
