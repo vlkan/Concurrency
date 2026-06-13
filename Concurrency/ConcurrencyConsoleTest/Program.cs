@@ -4,12 +4,7 @@ internal class Program
 {
     private static void Main(string[] args)
     {
-        Console.WriteLine("Hello, World!");
-
-        MyThreadPool.QueueUserWorkItem(() =>
-        {
-            Console.WriteLine("--");
-        });
+        Example_2();
 
         Console.ReadLine();
     }
@@ -30,5 +25,19 @@ internal class Program
         }
 
         Task.WhenAll(tasks).Wait();
+    }
+
+    static void Example_2()
+    {
+        var t = MyTask.Run(() =>
+        {
+            Console.WriteLine("Hello from MyTask!");
+            Thread.Sleep(3000);
+            Console.WriteLine("MyTask completed.");
+        });
+
+        Console.WriteLine("Before");
+        t.Wait();
+        Console.WriteLine("After");
     }
 }

@@ -1,4 +1,6 @@
-﻿namespace MyConcurrency
+﻿using System.Runtime.ExceptionServices;
+
+namespace MyConcurrency
 {
     public class MyTask
     {
@@ -8,11 +10,14 @@
         private ExecutionContext? executionContext;
         private object lockObject = new();
 
+        public bool IsCompleted => completed;
+        public Exception? Exception => exception;
+
         public void SetResult() => Complete(null);
 
         public void SetException(Exception exception) => Complete(exception);
 
-        public void Complete(Exception? exception)
+        private void Complete(Exception? exception)
         {
             lock (lockObject)
             {
@@ -45,21 +50,17 @@
             if (!completed)
             {
                 mre = new();
-                Action continuationAction = () => mre.Set();
-                lock (lockObject)
-                {
-                    if (completed)
-                    {
-                        mre.Set();
-                    }
-                    else
-                    {
-                        continuation += continuationAction;
-                    }
-                }
+                //Bekle ve benim SET methodumu çağır.
+                ContinueWith(() => mre.Set());
             }
 
             mre?.Wait();
+            //Completed
+
+            if (exception is not null) throw new AggregateException(exception);
+            //throw exception tüm exception stack'i unutur ve sadece kendisini atar.
+            //throw new AggregateException(exception) bu ise bütün exception stacki alıp üstüne bizikini ekler geçmiş kaybolmaz
+            //ExceptionDispatchInfo.Throw(exception); bu da aynısı ama oldschool
         }
 
         public MyTask ContinueWith(Action action)
@@ -98,7 +99,8 @@
         public static MyTask Run(Action action)
         {
             MyTask task = new();
-            MyThreadPool.QueueUserWorkItem(() =>
+
+            MyThreadPool.QueueUserWorkItem(delegate
             {
                 try
                 {
