@@ -183,6 +183,12 @@ namespace MyConcurrency
             return t;
         }
 
+        public static MyTask WhenEach(List<MyTask> tasks)
+        {
+            MyTask t = new();
+            return t;
+        }
+
         public static MyTask Delay(int milliseconds)
         {
             MyTask task = new();
