@@ -115,6 +115,87 @@ namespace MyConcurrency
             });
             return task;
         }
+
+        public static MyTask WhenAll(List<MyTask> tasks)
+        {
+            MyTask t = new();
+
+            var remainingCount = tasks.Count;
+
+            if (remainingCount == 0)
+            {
+                t.SetResult();
+                return t;
+            }
+
+            foreach (var task in tasks)
+            {
+                task.ContinueWith(() =>
+                {
+                    if (task.Exception is not null)
+                    {
+                        t.SetException(task.Exception);
+                        return;
+                    }
+                    if (Interlocked.Decrement(ref remainingCount) == 0)
+                    {
+                        t.SetResult();
+                    }
+                });
+            }
+
+            return t;
+        }
+
+        public static MyTask WhenAny(List<MyTask> tasks)
+        {
+            MyTask t = new();
+
+            if (tasks.Count == 0)
+            {
+                t.SetResult();
+                return t;
+            }
+
+            foreach (var task in tasks)
+            {
+                if (task.IsCompleted)
+                {
+                    if (task.Exception is not null)
+                    {
+                        t.SetException(task.Exception);
+                        return t;
+                    }
+                    t.SetResult();
+                    break;
+                }
+
+                task.ContinueWith(() =>
+                {
+                    if (task.Exception is not null)
+                    {
+                        t.SetException(task.Exception);
+                        return;
+                    }
+                    t.SetResult();
+                });
+            }
+            return t;
+        }
+
+        public static MyTask Delay(int milliseconds)
+        {
+            MyTask task = new();
+
+            var timer = new Timer((_) =>
+            {
+                task.SetResult();
+            });
+
+            timer.Change(milliseconds, Timeout.Infinite);
+            
+            return task;
+        }
         #endregion
     }
 }
