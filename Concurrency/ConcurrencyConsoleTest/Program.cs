@@ -1,10 +1,11 @@
 ﻿using MyConcurrency;
+using System.Threading.Tasks;
 
 internal class Program
 {
-    private static void Main(string[] args)
+    private static async Task Main(string[] args)
     {
-        Example_5();
+        await Example_6();
         //Console.ReadLine();
     }
     void Example_1()
@@ -111,5 +112,13 @@ internal class Program
         Console.WriteLine("Before");
         t.Wait();
         Console.WriteLine("After");
+    }
+
+    static async Task Example_6()
+    {
+        Console.WriteLine("Before");
+        await MyTask.Delay(2000);
+        Console.WriteLine("After");
+        //awaitable because of GetAwaiter() method in MyTask class
     }
 }

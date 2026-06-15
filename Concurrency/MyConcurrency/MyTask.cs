@@ -1,4 +1,5 @@
-﻿using System.Runtime.ExceptionServices;
+﻿using System.Runtime.CompilerServices;
+using System.Runtime.ExceptionServices;
 
 namespace MyConcurrency
 {
@@ -12,6 +13,16 @@ namespace MyConcurrency
 
         public bool IsCompleted => completed;
         public Exception? Exception => exception;
+
+        public struct Awaiter(MyTask task) : INotifyCompletion
+        {
+            public Awaiter GetAwaiter() => this;
+            public bool IsCompleted => task.IsCompleted;
+            public void OnCompleted(Action continuation) => task.ContinueWith(continuation);
+            public void GetResult() => task.Wait();
+        }
+
+        public Awaiter GetAwaiter() => new(this);
 
         public void SetResult() => Complete(null);
 
@@ -199,7 +210,7 @@ namespace MyConcurrency
             });
 
             timer.Change(milliseconds, Timeout.Infinite);
-            
+
             return task;
         }
         #endregion
