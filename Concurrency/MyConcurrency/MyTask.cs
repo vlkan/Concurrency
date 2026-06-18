@@ -14,6 +14,16 @@ namespace MyConcurrency
         public bool IsCompleted => completed;
         public Exception? Exception => exception;
 
+        public MyTask CompletedTask
+        {
+            get
+            {
+                MyTask task = new();
+                task.SetResult();
+                return task;
+            }
+        }
+
         public struct Awaiter(MyTask task) : INotifyCompletion
         {
             public Awaiter GetAwaiter() => this;
