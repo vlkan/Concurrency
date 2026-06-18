@@ -1,6 +1,5 @@
 ﻿using System.Collections.Concurrent;
 using System.Runtime.CompilerServices;
-using System.Runtime.ExceptionServices;
 
 namespace MyConcurrency
 {
@@ -105,6 +104,52 @@ namespace MyConcurrency
                 }
             }
             return task;
+        }
+
+        public MyTask ContinueWith(Func<MyTask> action)
+        {
+            MyTask t = new();
+
+            void callback()
+            {
+                try
+                {
+                    MyTask next = action();
+
+                    next.ContinueWith(() =>
+                    {
+                        if (next.exception is not null)
+                        {
+                            t.SetException(next.exception);
+                        }
+                        else
+                        {
+                            t.SetResult();
+                        }
+                    });
+
+                }
+                catch (Exception e)
+                {
+                    t.SetException(e);
+                    return;
+                }
+            }
+
+            lock (lockObject)
+            {
+                if (completed)
+                {
+                    MyThreadPool.QueueUserWorkItem(callback);
+                }
+                else
+                {
+                    continuation = callback;
+                    executionContext = ExecutionContext.Capture();
+                }
+            }
+
+            return t;
         }
 
         #region Helpers
