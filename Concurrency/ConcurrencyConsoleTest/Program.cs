@@ -5,7 +5,7 @@ internal class Program
 {
     private static async Task Main(string[] args)
     {
-        await Example_6();
+        await Example_7();
         //Console.ReadLine();
     }
     void Example_1()
@@ -120,5 +120,19 @@ internal class Program
         await MyTask.Delay(2000);
         Console.WriteLine("After");
         //awaitable because of GetAwaiter() method in MyTask class
+    }
+
+    static async Task Example_7() 
+    {
+        var tasks = new List<MyTask>();
+
+        tasks.Add(MyTask.Run(() => { Thread.Sleep(3000); }));
+        tasks.Add(MyTask.Run(() => { Thread.Sleep(1000); }));
+        tasks.Add(MyTask.Run(() => { Thread.Sleep(5500); }));
+
+        await foreach (var item in MyTask.WhenEach(tasks))
+        {
+            Console.WriteLine("Task tamamlandi");
+        }
     }
 }
