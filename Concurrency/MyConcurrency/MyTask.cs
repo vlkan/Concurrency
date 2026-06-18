@@ -1,4 +1,5 @@
-﻿using System.Runtime.CompilerServices;
+﻿using System.Collections.Concurrent;
+using System.Runtime.CompilerServices;
 using System.Runtime.ExceptionServices;
 
 namespace MyConcurrency
@@ -194,10 +195,34 @@ namespace MyConcurrency
             return t;
         }
 
-        public static MyTask WhenEach(List<MyTask> tasks)
+        public static async IAsyncEnumerable<MyTask> WhenEach(List<MyTask> tasks)
         {
-            MyTask t = new();
-            return t;
+            if (tasks == null || tasks.Count == 0)
+                yield break;
+
+            var remainingTasks = new ConcurrentBag<MyTask>(tasks);
+            var taskCompletionSource = new TaskCompletionSource<MyTask>();
+
+            foreach (var task in remainingTasks)
+            {
+                _ = task.ContinueWith(() =>
+                {
+                    if (remainingTasks.TryTake(out _))
+                    {
+                        taskCompletionSource.TrySetResult(task);
+                    }
+                });
+            }
+
+            while (!remainingTasks.IsEmpty)
+            {
+                var completedTask = await taskCompletionSource.Task;
+
+                yield return completedTask;
+
+                if (!remainingTasks.IsEmpty)
+                    taskCompletionSource = new TaskCompletionSource<MyTask>();
+            }
         }
 
         public static MyTask Delay(int milliseconds)
