@@ -24,6 +24,13 @@ namespace MyConcurrency
             }
         }
 
+        public MyTask FromResult<T>(T result)
+        {
+            MyTaskResult<T> t = new();
+            t.SetResult();
+            return t;
+        }
+
         public struct Awaiter(MyTask task) : INotifyCompletion
         {
             public Awaiter GetAwaiter() => this;
